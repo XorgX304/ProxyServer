@@ -1,0 +1,7 @@
+1.channel是什么时候被关闭的。
+2.ChannelInactive是什么时候被触发的。
+3.如果另一方发送了FIN PACKET,触发哪些事件(会触发ChannelReadComplete,但是会触发ChannelInactive吗)。
+4.如果另一方发送了FIN PACKET,还可以继续发送数据吗,指明使用方法。
+5.relation的抽象表示还很不清晰,优先处理。(doing... -> finished)
+6.MClient的关闭还没有实现。
+7.MServer的反向通道断开重连还没有实现。

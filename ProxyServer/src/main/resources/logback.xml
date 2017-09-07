@@ -18,7 +18,7 @@
             <!-- keep 30 days' worth ofRefundGatewayRequest history capped at 3GB total size -->
             <maxHistory>365</maxHistory>
             <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                <maxFileSize>1024MB</maxFileSize>
+                <maxFileSize>5MB</maxFileSize>
             </timeBasedFileNamingAndTriggeringPolicy>
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>

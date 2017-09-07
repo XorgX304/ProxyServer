@@ -6,37 +6,40 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCounted;
 import org.game.throne.proxy.forward.ChannelRelationEvent;
+import org.game.throne.proxy.forward.relation.RelationKeeper;
+import org.game.throne.proxy.forward.relation.RelationProcess;
 import org.game.throne.proxy.forward.util.HttpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by lvtu on 2017/9/6.
  */
 @ChannelHandler.Sharable
-public class ChannelClientHandler extends SimpleChannelInboundHandler {
+public class ChannelClientHandler extends SimpleChannelInboundHandler implements RelationProcess {
 
     private final static Logger logger = LoggerFactory.getLogger(ChannelClientHandler.class);
 
     private LocalHandler localHandler;
+
+    private RelationKeeper relationKeeper;
 
     public ChannelClientHandler(LocalHandler localHandler) {
         this.localHandler = localHandler;
         localHandler.clientHandler = this;
     }
 
-    protected Map<ChannelHandlerContext, ChannelHandlerContext> relation = new ConcurrentHashMap<>();
+    public ChannelClientHandler(LocalHandler localHandler,RelationKeeper relationKeeper) {
+        this(localHandler);
+        this.relationKeeper = relationKeeper;
+    }
 
     private ChannelHandlerContext localConext(ChannelHandlerContext ctx) {
-        ChannelHandlerContext localContext = relation.get(ctx);
-        if (localContext == null) {
-            localContext = localHandler.getUsableContext();
-            relation.putIfAbsent(ctx, localContext);
-            localHandler.relation.putIfAbsent(localContext, ctx);
+        if(relationKeeper.exists(ctx)){
+            return relationKeeper.matchedContext(ctx);
         }
+        ChannelHandlerContext localContext = localHandler.getUsableContext();;
+        relationKeeper.addRelation(ctx,localContext);
         return localContext;
     }
 
@@ -72,12 +75,14 @@ public class ChannelClientHandler extends SimpleChannelInboundHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        requestBreakRelation(ctx);
         ctx.writeAndFlush(HttpUtil.errorResponse());
         cause.printStackTrace();
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        requestBreakRelation(ctx);
         super.channelInactive(ctx);
     }
 
@@ -98,14 +103,14 @@ public class ChannelClientHandler extends SimpleChannelInboundHandler {
         }
     }
 
-    private void responseBreakRelation(ChannelHandlerContext ctx){
-        relation.remove(ctx);
+    @Override
+    public void requestBreakRelation(ChannelHandlerContext ctx){
+        relationKeeper.breakRelation(ctx);
     }
 
-    private void requestBreakRelation(ChannelHandlerContext ctx){
-        ChannelHandlerContext localContext = relation.remove(ctx);
-        localContext.pipeline().fireUserEventTriggered(ChannelRelationEvent.BREAK);
-    }
+    @Override
+    public void responseBreakRelation(ChannelHandlerContext ctx){
 
+    }
 
 }

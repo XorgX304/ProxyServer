@@ -8,37 +8,40 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCounted;
 import org.game.throne.proxy.forward.ChannelRelationEvent;
 import org.game.throne.proxy.forward.client.ChannelClientHandler;
+import org.game.throne.proxy.forward.relation.RelationKeeper;
+import org.game.throne.proxy.forward.relation.RelationProcess;
 import org.game.throne.proxy.forward.util.HttpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by lvtu on 2017/9/6.
  */
 @ChannelHandler.Sharable
-public class ServerHandler extends SimpleChannelInboundHandler {
+public class ServerHandler extends SimpleChannelInboundHandler implements RelationProcess {
 
     private final static Logger logger = LoggerFactory.getLogger(ChannelClientHandler.class);
 
     private ChannelServerHandler channelServerHandler;
+
+    private RelationKeeper relationKeeper;
 
     public ServerHandler(ChannelServerHandler channelServerHandler) {
         this.channelServerHandler = channelServerHandler;
         channelServerHandler.serverHandler = this;
     }
 
-    protected Map<ChannelHandlerContext, ChannelHandlerContext> relation = new ConcurrentHashMap<>();
+    public ServerHandler(ChannelServerHandler channelServerHandler,RelationKeeper relationKeeper) {
+        this(channelServerHandler);
+        this.relationKeeper = relationKeeper;
+    }
 
     private ChannelHandlerContext channelServerConext(ChannelHandlerContext ctx) {
-        ChannelHandlerContext localContext = relation.get(ctx);
-        if (localContext == null) {
-            localContext = channelServerHandler.getUsableContext();
-            relation.putIfAbsent(ctx, localContext);
-            channelServerHandler.relation.putIfAbsent(localContext, ctx);
+        if(relationKeeper.exists(ctx)){
+            return relationKeeper.matchedContext(ctx);
         }
+        ChannelHandlerContext localContext = channelServerHandler.getUsableContext();
+        relationKeeper.addRelation(ctx,localContext);
         return localContext;
     }
 
@@ -102,10 +105,18 @@ public class ServerHandler extends SimpleChannelInboundHandler {
             requestBreakRelation(ctx);
             return;
         }
+        if(ChannelRelationEvent.BREAK.equals(evt)){
+            responseBreakRelation(ctx);
+        }
     }
 
-    private void requestBreakRelation(ChannelHandlerContext ctx) {
-        ChannelHandlerContext channelServerConext = relation.remove(ctx);
-        channelServerConext.pipeline().fireUserEventTriggered(ChannelRelationEvent.BREAK);
+    @Override
+    public void requestBreakRelation(ChannelHandlerContext ctx) {
+        relationKeeper.breakRelation(ctx);
+    }
+
+    @Override
+    public void responseBreakRelation(ChannelHandlerContext ctx) {
+
     }
 }

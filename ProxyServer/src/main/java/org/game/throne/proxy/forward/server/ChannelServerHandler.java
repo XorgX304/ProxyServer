@@ -11,17 +11,16 @@ import org.game.throne.proxy.forward.client.LocalHandler;
 import org.game.throne.proxy.forward.pool.ContextObjectPool;
 import org.game.throne.proxy.forward.pool.ContextObjectPoolImpl;
 import org.game.throne.proxy.forward.pool.ContextPooledObjectFactory;
+import org.game.throne.proxy.forward.relation.RelationKeeper;
+import org.game.throne.proxy.forward.relation.RelationProcess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by lvtu on 2017/9/6.
  */
 @ChannelHandler.Sharable
-public class ChannelServerHandler extends SimpleChannelInboundHandler {
+public class ChannelServerHandler extends SimpleChannelInboundHandler implements RelationProcess {
 
     private final static Logger logger = LoggerFactory.getLogger(LocalHandler.class);
 
@@ -29,11 +28,15 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler {
 
     private ContextObjectPool<ChannelHandlerContext> contextObjectPool;
 
-    protected Map<ChannelHandlerContext, ChannelHandlerContext> relation = new ConcurrentHashMap<>();
-
+    private RelationKeeper relationKeeper;
 
     public ChannelServerHandler() {
         contextObjectPool = new ContextObjectPoolImpl<ChannelHandlerContext>(new ContextPooledObjectFactory());
+    }
+
+    public ChannelServerHandler(RelationKeeper relationKeeper) {
+        this();
+        this.relationKeeper = relationKeeper;
     }
 
     public ChannelHandlerContext getUsableContext() {
@@ -46,7 +49,7 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler {
     }
 
     private ChannelHandlerContext serverConext(ChannelHandlerContext ctx) {
-        return relation.get(ctx);
+        return relationKeeper.matchedContext(ctx);
     }
 
     @Override
@@ -81,11 +84,6 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler {
         cause.printStackTrace();
     }
 
-    @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        flushToNextChannel(ctx);
-    }
-
     private void flushToNextChannel(ChannelHandlerContext ctx) {
         ChannelHandlerContext clientConext = serverConext(ctx);
         logger.info("flush data. from channel:{},start to flush into next channel:{}", ctx.channel(), clientConext.channel());
@@ -95,6 +93,7 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         contextObjectPool.invalidateObject(ctx);
+        requestBreakRelation(ctx);
         super.channelInactive(ctx);
     }
 
@@ -116,12 +115,17 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler {
         }
     }
 
-    private void responseFinishedNotify(ChannelHandlerContext ctx){
+    private void responseFinishedNotify(ChannelHandlerContext ctx) {
         serverConext(ctx).pipeline().fireUserEventTriggered(ChannelRelationEvent.RESPONSE_FINISHED);
     }
 
-    private void responseBreakRelation(ChannelHandlerContext ctx) {
-        relation.remove(ctx);
+    @Override
+    public void requestBreakRelation(ChannelHandlerContext ctx) {
+        relationKeeper.breakRelation(ctx);
+    }
+
+    @Override
+    public void responseBreakRelation(ChannelHandlerContext ctx) {
         try {
             contextObjectPool.returnObject(ctx);
         } catch (Exception e) {

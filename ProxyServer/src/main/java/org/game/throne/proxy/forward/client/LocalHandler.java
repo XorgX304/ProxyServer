@@ -10,6 +10,8 @@ import org.game.throne.proxy.forward.ChannelRelationEvent;
 import org.game.throne.proxy.forward.pool.ContextObjectPool;
 import org.game.throne.proxy.forward.pool.ContextObjectPoolImpl;
 import org.game.throne.proxy.forward.pool.ContextPooledObjectFactory;
+import org.game.throne.proxy.forward.relation.RelationKeeper;
+import org.game.throne.proxy.forward.relation.RelationProcess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +23,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * Created by lvtu on 2017/9/6.
  */
 @ChannelHandler.Sharable
-public class LocalHandler extends SimpleChannelInboundHandler {
+public class LocalHandler extends SimpleChannelInboundHandler implements RelationProcess {
 
     private final static Logger logger = LoggerFactory.getLogger(LocalHandler.class);
 
@@ -33,12 +35,19 @@ public class LocalHandler extends SimpleChannelInboundHandler {
 
     private LocalClientFactory factory;
 
+    private ReentrantLock lock = new ReentrantLock();
+
+    private RelationKeeper relationKeeper;
+
     public LocalHandler(LocalClientFactory factory) {
         contextObjectPool = new ContextObjectPoolImpl<ChannelHandlerContext>(new ContextPooledObjectFactory());
         this.factory = factory;
     }
 
-    private ReentrantLock lock = new ReentrantLock();
+    public LocalHandler(LocalClientFactory factory,RelationKeeper relationKeeper) {
+        this(factory);
+        this.relationKeeper = relationKeeper;
+    }
 
     public ChannelHandlerContext getUsableContext() {
         try {
@@ -56,7 +65,7 @@ public class LocalHandler extends SimpleChannelInboundHandler {
     }
 
     private ChannelHandlerContext channelClientConext(ChannelHandlerContext ctx) {
-        return relation.get(ctx);
+        return relationKeeper.matchedContext(ctx);
     }
 
     @Override
@@ -95,12 +104,14 @@ public class LocalHandler extends SimpleChannelInboundHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        requestBreakRelation(ctx);
         contextObjectPool.invalidateObject(ctx);
         cause.printStackTrace();
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        requestBreakRelation(ctx);
         contextObjectPool.invalidateObject(ctx);
         super.channelInactive(ctx);
     }
@@ -131,18 +142,13 @@ public class LocalHandler extends SimpleChannelInboundHandler {
         channelClientConext(ctx).pipeline().fireUserEventTriggered(ChannelRelationEvent.RESPONSE_FINISHED);
     }
 
-    private void responseBreakRelation(ChannelHandlerContext ctx){
-        relation.remove(ctx);
-        try {
-            contextObjectPool.returnObject(ctx);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    @Override
+    public void requestBreakRelation(ChannelHandlerContext ctx) {
+        relationKeeper.breakRelation(ctx);
     }
 
-    private void requestBreakRelation(ChannelHandlerContext ctx) {
-        ChannelHandlerContext channelClientConext = relation.remove(ctx);
-        channelClientConext.pipeline().fireUserEventTriggered(ChannelRelationEvent.BREAK);
+    @Override
+    public void responseBreakRelation(ChannelHandlerContext ctx){
         try {
             contextObjectPool.returnObject(ctx);
         } catch (Exception e) {
