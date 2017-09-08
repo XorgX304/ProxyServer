@@ -22,13 +22,13 @@ public class ProxyServer {
 //            logger.info("please specify listenerPort,forward host and port.");
 //        }
 
-        int listenerPort = 8081;//Integer.parseInt(args[0]);
-        String host = "l";//args[1];
-        String port = "8888";//args[2];
+        int proxylistenerPort = 8081;//Integer.parseInt(args[0]);
+        String originalHost = "localhost";//args[1];
+        String originalPort = "8888";//args[2];
 
         HttpProxyServer server =
                 DefaultHttpProxyServer.bootstrap()
-                        .withPort(listenerPort)
+                        .withPort(proxylistenerPort)
                         .withAllowRequestToOriginServer(true)
                         .withAllowLocalOnly(false)
                         .withFiltersSource(new HttpFiltersSourceAdapter() {
@@ -41,7 +41,7 @@ public class ProxyServer {
                                             logger.info("received request.");
                                             DefaultHttpRequest request = (DefaultHttpRequest) httpObject;
                                             HttpHeaders headers = request.headers();
-                                            headers.set("host", host + ":" + port);
+                                            headers.set("host", originalHost + ":" + originalPort);
                                         }
                                         return null;
                                     }
