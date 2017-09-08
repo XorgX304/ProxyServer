@@ -7,6 +7,7 @@ import io.netty.channel.socket.ChannelInputShutdownEvent;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCounted;
 import org.game.throne.proxy.forward.ChannelRelationEvent;
+import org.game.throne.proxy.forward.TimeoutException;
 import org.game.throne.proxy.forward.client.ChannelClientHandler;
 import org.game.throne.proxy.forward.relation.RelationKeeper;
 import org.game.throne.proxy.forward.relation.RelationProcess;
@@ -31,18 +32,22 @@ public class ServerHandler extends SimpleChannelInboundHandler implements Relati
         channelServerHandler.serverHandler = this;
     }
 
-    public ServerHandler(ChannelServerHandler channelServerHandler,RelationKeeper relationKeeper) {
+    public ServerHandler(ChannelServerHandler channelServerHandler, RelationKeeper relationKeeper) {
         this(channelServerHandler);
         this.relationKeeper = relationKeeper;
     }
 
     private ChannelHandlerContext channelServerConext(ChannelHandlerContext ctx) {
-        if(relationKeeper.exists(ctx)){
+        if (relationKeeper.exists(ctx)) {
             return relationKeeper.matchedContext(ctx);
         }
-        ChannelHandlerContext localContext = channelServerHandler.getUsableContext();
-        relationKeeper.addRelation(ctx,localContext);
-        return localContext;
+        ChannelHandlerContext channelServerHandlerUsableContext = channelServerHandler.getAvailableContext();
+        if (channelServerHandlerUsableContext == null) {
+            //因为超时没有获取到
+            return null;
+        }
+        relationKeeper.addRelation(ctx, channelServerHandlerUsableContext);
+        return channelServerHandlerUsableContext;
     }
 
     @Override
@@ -62,9 +67,14 @@ public class ServerHandler extends SimpleChannelInboundHandler implements Relati
         }
         logger.info("start to get next context.");
         ChannelHandlerContext channelServerConext = channelServerConext(ctx);
+        if (channelServerConext == null) {
+            //因为超时等原因,没有获取到可用的context。
+            ctx.pipeline().fireExceptionCaught(new TimeoutException("server timeout"));
+            return;
+        }
         logger.info("data arrived. from channel:{},start to write into next channel:{}, msg:{}", ctx.channel(), channelServerConext.channel(), msg);
         channelServerConext.write(msg);
-        if(msg instanceof LastHttpContent){
+        if (msg instanceof LastHttpContent) {
             flushToNextChannel(ctx);
         }
     }
@@ -72,7 +82,7 @@ public class ServerHandler extends SimpleChannelInboundHandler implements Relati
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         cause.printStackTrace();
-        ctx.writeAndFlush(HttpUtil.errorResponse());
+        ctx.writeAndFlush(HttpUtil.errorResponse(cause.getMessage()));
         requestBreakRelation(ctx);
     }
 
@@ -100,12 +110,12 @@ public class ServerHandler extends SimpleChannelInboundHandler implements Relati
             requestBreakRelation(ctx);
             return;
         }
-        if(ChannelRelationEvent.RESPONSE_FINISHED.equals(evt)){
+        if (ChannelRelationEvent.RESPONSE_FINISHED.equals(evt)) {
             logger.debug("RESPONSE_FINISHED Event received.");
             requestBreakRelation(ctx);
             return;
         }
-        if(ChannelRelationEvent.BREAK.equals(evt)){
+        if (ChannelRelationEvent.BREAK.equals(evt)) {
             responseBreakRelation(ctx);
         }
     }

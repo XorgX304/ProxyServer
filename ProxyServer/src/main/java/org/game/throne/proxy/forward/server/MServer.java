@@ -29,19 +29,14 @@ public class MServer {
 
     private ChannelHandlerFactory[] factories;
 
-    private EventLoopGroup bossGroup;
-    private EventLoopGroup workerGroup;
-    private Channel serverChannel;
-
-
     public MServer withHandlerFactory(ChannelHandlerFactory... factories) {
         this.factories = factories;
         return this;
     }
 
     public MServer run() {
-        bossGroup = new NioEventLoopGroup(); // (1)
-        workerGroup = new NioEventLoopGroup();
+        EventLoopGroup bossGroup = new NioEventLoopGroup(); // (1)
+        EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
             ServerBootstrap b = new ServerBootstrap(); // (2)
             b.group(bossGroup, workerGroup)
@@ -64,20 +59,17 @@ public class MServer {
             // Bind and start to accept incoming connections.
             ChannelFuture f = b.bind(port).sync(); // (7)
 
-            serverChannel = f.channel();
+            f.channel().closeFuture().addListener(new GenericFutureListener<Future<? super Void>>() {
+                @Override
+                public void operationComplete(Future<? super Void> future) throws Exception {
+                    workerGroup.shutdownGracefully();
+                    bossGroup.shutdownGracefully();
+                }
+            });
+
         } catch (Exception e) {
             e.printStackTrace();
         }
         return this;
-    }
-
-    public void releaseOnClose() {
-        serverChannel.closeFuture().addListener(new GenericFutureListener<Future<? super Void>>() {
-            @Override
-            public void operationComplete(Future<? super Void> future) throws Exception {
-                workerGroup.shutdownGracefully();
-                bossGroup.shutdownGracefully();
-            }
-        });
     }
 }

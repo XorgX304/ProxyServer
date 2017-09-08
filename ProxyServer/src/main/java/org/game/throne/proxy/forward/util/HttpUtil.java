@@ -10,8 +10,12 @@ import io.netty.util.CharsetUtil;
  */
 public class HttpUtil {
 
-    public static HttpResponse errorResponse(){
-        ByteBuf content = Unpooled.copiedBuffer("error.", CharsetUtil.UTF_8);
+    public static HttpResponse errorResponse() {
+        return errorResponse("errror");
+    }
+
+    public static HttpResponse errorResponse(String s) {
+        ByteBuf content = Unpooled.copiedBuffer(s, CharsetUtil.UTF_8);
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR, content);
         response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");//必须加这个，否则浏览器不响应
         response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, content.readableBytes());//必须加这个，否则浏览器不响应

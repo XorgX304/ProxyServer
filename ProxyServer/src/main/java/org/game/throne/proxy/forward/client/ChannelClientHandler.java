@@ -6,6 +6,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCounted;
 import org.game.throne.proxy.forward.ChannelRelationEvent;
+import org.game.throne.proxy.forward.TimeoutException;
 import org.game.throne.proxy.forward.relation.RelationKeeper;
 import org.game.throne.proxy.forward.relation.RelationProcess;
 import org.game.throne.proxy.forward.util.HttpUtil;
@@ -41,7 +42,10 @@ public class ChannelClientHandler extends SimpleChannelInboundHandler implements
         if(relationKeeper.exists(ctx)){
             return relationKeeper.matchedContext(ctx);
         }
-        ChannelHandlerContext localContext = localHandler.getUsableContext();;
+        ChannelHandlerContext localContext = localHandler.getAvailableContext();
+        if (localContext == null) {
+            return null;
+        }
         relationKeeper.addRelation(ctx,localContext);
         return localContext;
     }
@@ -66,6 +70,11 @@ public class ChannelClientHandler extends SimpleChannelInboundHandler implements
         }
         logger.info("start to get next context.");
         ChannelHandlerContext nextContext = localConext(ctx);
+        if(nextContext == null){
+            //因为超时等原因,没有获取到可用的context。
+            ctx.pipeline().fireExceptionCaught(new TimeoutException("client timeout"));
+            return;
+        }
         logger.info("data arrived. from channel:{},start to write into next channel:{}, msg:{}", ctx.channel(), nextContext.channel(), msg);
         nextContext.write(msg);
     }
@@ -79,7 +88,7 @@ public class ChannelClientHandler extends SimpleChannelInboundHandler implements
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         requestBreakRelation(ctx);
-        ctx.writeAndFlush(HttpUtil.errorResponse());
+        ctx.writeAndFlush(HttpUtil.errorResponse(cause.getMessage()));
         cause.printStackTrace();
     }
 

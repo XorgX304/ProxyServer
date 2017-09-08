@@ -7,27 +7,28 @@ import io.netty.channel.socket.ChannelInputShutdownEvent;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCounted;
 import org.game.throne.proxy.forward.ChannelRelationEvent;
-import org.game.throne.proxy.forward.pool.ContextObjectPool;
-import org.game.throne.proxy.forward.pool.ContextObjectPoolImpl;
-import org.game.throne.proxy.forward.pool.ContextPooledObjectFactory;
 import org.game.throne.proxy.forward.relation.RelationKeeper;
 import org.game.throne.proxy.forward.relation.RelationProcess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by lvtu on 2017/9/6.
  */
 @ChannelHandler.Sharable
-public class LocalHandler extends SimpleChannelInboundHandler implements RelationProcess {
+public class LocalHandler extends SimpleChannelInboundHandler implements RelationProcess, Runnable {
 
     private final static Logger logger = LoggerFactory.getLogger(LocalHandler.class);
 
     protected ChannelClientHandler clientHandler = null;
 
-    private ContextObjectPool<ChannelHandlerContext> contextObjectPool;
+    private BlockingDeque<ChannelHandlerContext> contextObjectPool = new LinkedBlockingDeque();
 
     private ClientFactory factory;
 
@@ -35,23 +36,25 @@ public class LocalHandler extends SimpleChannelInboundHandler implements Relatio
 
     private RelationKeeper relationKeeper;
 
-    private LocalHandler(ClientFactory factory) {
-        contextObjectPool = new ContextObjectPoolImpl<ChannelHandlerContext>(new ContextPooledObjectFactory());
-        this.factory = factory;
-    }
+    private ScheduledThreadPoolExecutor clientHouseKeeper = new ScheduledThreadPoolExecutor(1);
 
     public LocalHandler(ClientFactory factory, RelationKeeper relationKeeper) {
-        this(factory);
+        this.factory = factory;
         this.relationKeeper = relationKeeper;
+        clientHouseKeeper.scheduleWithFixedDelay(this, 0, 5, TimeUnit.SECONDS);
     }
 
-    public ChannelHandlerContext getUsableContext() {
+    @Override
+    public void run() {
+        if (contextObjectPool.size() <= 0) {
+            addLocalChannel();
+        }
+    }
+
+    public ChannelHandlerContext getAvailableContext() {
         try {
             lock.lock();
-            if (contextObjectPool.getNumIdle() <= 0) {
-                addLocalChannel();
-            }
-            return contextObjectPool.borrowObject();
+            return contextObjectPool.poll(30, TimeUnit.SECONDS);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -68,7 +71,7 @@ public class LocalHandler extends SimpleChannelInboundHandler implements Relatio
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         logger.info("connected, handler:{},channel:{}", ctx, ctx.channel());
         //保存这个ChannelHandlerContext
-        contextObjectPool.addObject(ctx);
+        contextObjectPool.offer(ctx);
     }
 
     @Override
@@ -101,14 +104,14 @@ public class LocalHandler extends SimpleChannelInboundHandler implements Relatio
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         requestBreakRelation(ctx);
-        contextObjectPool.invalidateObject(ctx);
+        contextObjectPool.remove(ctx);
         cause.printStackTrace();
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         requestBreakRelation(ctx);
-        contextObjectPool.invalidateObject(ctx);
+        contextObjectPool.remove(ctx);
         super.channelInactive(ctx);
     }
 
@@ -126,15 +129,15 @@ public class LocalHandler extends SimpleChannelInboundHandler implements Relatio
         //服务器优先发送了FIN packet
         if (ChannelInputShutdownEvent.INSTANCE.equals(evt)) {
             requestBreakRelation(ctx);
-            contextObjectPool.invalidateObject(ctx);
+            contextObjectPool.remove(ctx);
             ctx.close();
         }
-        if(ChannelRelationEvent.BREAK.equals(evt)){
+        if (ChannelRelationEvent.BREAK.equals(evt)) {
             responseBreakRelation(ctx);
         }
     }
 
-    private void responseFinishedNotify(ChannelHandlerContext ctx){
+    private void responseFinishedNotify(ChannelHandlerContext ctx) {
         channelClientConext(ctx).pipeline().fireUserEventTriggered(ChannelRelationEvent.RESPONSE_FINISHED);
     }
 
@@ -144,9 +147,9 @@ public class LocalHandler extends SimpleChannelInboundHandler implements Relatio
     }
 
     @Override
-    public void responseBreakRelation(ChannelHandlerContext ctx){
+    public void responseBreakRelation(ChannelHandlerContext ctx) {
         try {
-            contextObjectPool.returnObject(ctx);
+            contextObjectPool.offer(ctx);
         } catch (Exception e) {
             e.printStackTrace();
         }

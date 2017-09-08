@@ -8,13 +8,14 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCounted;
 import org.game.throne.proxy.forward.ChannelRelationEvent;
 import org.game.throne.proxy.forward.client.LocalHandler;
-import org.game.throne.proxy.forward.pool.ContextObjectPool;
-import org.game.throne.proxy.forward.pool.ContextObjectPoolImpl;
-import org.game.throne.proxy.forward.pool.ContextPooledObjectFactory;
 import org.game.throne.proxy.forward.relation.RelationKeeper;
 import org.game.throne.proxy.forward.relation.RelationProcess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by lvtu on 2017/9/6.
@@ -26,22 +27,17 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler implements
 
     protected ServerHandler serverHandler = null;
 
-    private ContextObjectPool<ChannelHandlerContext> contextObjectPool;
+    private BlockingDeque<ChannelHandlerContext> contextObjectPool = new LinkedBlockingDeque();
 
     private RelationKeeper relationKeeper;
 
-    public ChannelServerHandler() {
-        contextObjectPool = new ContextObjectPoolImpl<ChannelHandlerContext>(new ContextPooledObjectFactory());
-    }
-
     public ChannelServerHandler(RelationKeeper relationKeeper) {
-        this();
         this.relationKeeper = relationKeeper;
     }
 
-    public ChannelHandlerContext getUsableContext() {
+    public ChannelHandlerContext getAvailableContext() {
         try {
-            return contextObjectPool.borrowObject();
+            return contextObjectPool.poll(30, TimeUnit.SECONDS);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -56,7 +52,7 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler implements
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         logger.info("connected, handler:{},channel:{}", ctx, ctx.channel());
         //保存这个ChannelHandlerContext
-        contextObjectPool.addObject(ctx);
+        contextObjectPool.offer(ctx);
     }
 
     @Override
@@ -92,7 +88,7 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler implements
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        contextObjectPool.invalidateObject(ctx);
+        contextObjectPool.remove(ctx);
         requestBreakRelation(ctx);
         super.channelInactive(ctx);
     }
@@ -127,7 +123,7 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler implements
     @Override
     public void responseBreakRelation(ChannelHandlerContext ctx) {
         try {
-            contextObjectPool.returnObject(ctx);
+            contextObjectPool.offer(ctx);
         } catch (Exception e) {
             e.printStackTrace();
         }

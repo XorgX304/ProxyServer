@@ -27,7 +27,6 @@ public class ClientBootstrap {
                 MClient client = new MClient(localhost, localPort)
                         .withHandlerFactory(new ChannelHandlerFactory(HttpRequestEncoder.class), new ChannelHandlerFactory(HttpResponseDecoder.class))
                         .withHandler(handler).connect();
-                client.releaseOnClose();
                 return client;
             }
         };
@@ -37,7 +36,6 @@ public class ClientBootstrap {
                 MClient client = new MClient(remoteHost, remotePort)
                         .withHandlerFactory(new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class))
                         .withHandler(handler).connect();
-                client.releaseOnClose();
                 return client;
             }
         };
