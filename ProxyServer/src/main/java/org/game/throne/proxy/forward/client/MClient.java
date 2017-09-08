@@ -5,6 +5,8 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import org.game.throne.proxy.forward.ChannelHandlerFactory;
 
 /**
@@ -15,6 +17,9 @@ public class MClient {
     private String host;
     private int port;
     private ChannelHandler[] handler;
+
+    private Channel channel;
+    private EventLoopGroup workerGroup;
 
     public MClient(String host, int port) {
         this.host = host;
@@ -33,8 +38,9 @@ public class MClient {
         return this;
     }
 
+
     public MClient connect() {
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        workerGroup = new NioEventLoopGroup();
 
         try {
             Bootstrap b = new Bootstrap(); // (1)
@@ -57,14 +63,25 @@ public class MClient {
             // Start the client.
             ChannelFuture f = b.connect(host, port).sync(); // (5)
 
-            //TODO 释放资源被注释掉了
-            // Wait until the connection is closed.
-//            f.channel().closeFuture().sync();
+            channel = f.channel();
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-//            workerGroup.shutdownGracefully();
         }
         return this;
+    }
+
+    public void releaseOnClose() {
+        try {
+//            channel.closeFuture().sync(); //担心这种写法会有deadlock,例如这个任务会等待下一个任务执行的close,但是这个任务又会一直等待close,因此有可能形成deadlock。
+//            channel.close(); netty好像自己会调用,需要调查一下
+            channel.closeFuture().addListener(new GenericFutureListener() {
+                @Override
+                public void operationComplete(Future future) throws Exception {
+                    workerGroup.shutdownGracefully();
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

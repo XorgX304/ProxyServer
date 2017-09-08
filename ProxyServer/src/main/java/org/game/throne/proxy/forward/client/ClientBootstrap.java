@@ -15,17 +15,30 @@ public class ClientBootstrap {
 
     public static void main(String[] args) {
         RelationKeeper relationKeeper = new RelationKeeper();
-        ChannelClientHandler channelClientHandler = new ChannelClientHandler(new LocalHandler(new LocalClientFactory() {
+        ClientFactory localClientFactory = new ClientFactory() {
             @Override
             MClient create(ChannelHandler handler) {
-                return new MClient("localhost", 8888)
+                MClient client = new MClient("localhost", 8888)
                         .withHandlerFactory(new ChannelHandlerFactory(HttpRequestEncoder.class), new ChannelHandlerFactory(HttpResponseDecoder.class))
                         .withHandler(handler).connect();
+                client.releaseOnClose();
+                return client;
             }
-        }, relationKeeper), relationKeeper);
+        };
+        ClientFactory channelClientFactory = new ClientFactory() {
+            @Override
+            MClient create(ChannelHandler handler) {
+                MClient client = new MClient("localhost", 8082)
+                        .withHandlerFactory(new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class))
+                        .withHandler(handler).connect();
+                client.releaseOnClose();
+                return client;
+            }
+        };
+        LocalHandler localHandler = new LocalHandler(localClientFactory, relationKeeper);
+        ChannelClientHandler channelClientHandler = new ChannelClientHandler(localHandler, relationKeeper, channelClientFactory);
 
-        new MClient("localhost", 8082)
-                .withHandlerFactory(new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class))
-                .withHandler(channelClientHandler).connect();
+        channelClientFactory.create(channelClientHandler);
+
     }
 }

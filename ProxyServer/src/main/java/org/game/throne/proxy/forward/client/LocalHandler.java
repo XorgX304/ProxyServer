@@ -15,8 +15,6 @@ import org.game.throne.proxy.forward.relation.RelationProcess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -31,20 +29,18 @@ public class LocalHandler extends SimpleChannelInboundHandler implements Relatio
 
     private ContextObjectPool<ChannelHandlerContext> contextObjectPool;
 
-    protected Map<ChannelHandlerContext, ChannelHandlerContext> relation = new ConcurrentHashMap<>();
-
-    private LocalClientFactory factory;
+    private ClientFactory factory;
 
     private ReentrantLock lock = new ReentrantLock();
 
     private RelationKeeper relationKeeper;
 
-    public LocalHandler(LocalClientFactory factory) {
+    private LocalHandler(ClientFactory factory) {
         contextObjectPool = new ContextObjectPoolImpl<ChannelHandlerContext>(new ContextPooledObjectFactory());
         this.factory = factory;
     }
 
-    public LocalHandler(LocalClientFactory factory,RelationKeeper relationKeeper) {
+    public LocalHandler(ClientFactory factory, RelationKeeper relationKeeper) {
         this(factory);
         this.relationKeeper = relationKeeper;
     }

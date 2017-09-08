@@ -20,8 +20,8 @@ public class ServerBootstrap {
         RelationKeeper relationKeeper = new RelationKeeper();
         ChannelServerHandler channelServerHandler = new ChannelServerHandler(relationKeeper);
         ServerHandler serverHandler = new ServerHandler(channelServerHandler,relationKeeper);
-        new MServer(8083).withHandlerFactory(new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class)).withHandler(serverHandler).run();
-        new MServer(8082).withHandlerFactory(new ChannelHandlerFactory(HttpRequestEncoder.class), new ChannelHandlerFactory(HttpResponseDecoder.class)).withHandler(channelServerHandler).run();
+        new MServer(8083).withHandlerFactory(new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class)).withHandler(serverHandler).run().releaseOnClose();
+        new MServer(8082).withHandlerFactory(new ChannelHandlerFactory(HttpRequestEncoder.class), new ChannelHandlerFactory(HttpResponseDecoder.class)).withHandler(channelServerHandler).run().releaseOnClose();
         logger.info("servers started up.");
     }
 }

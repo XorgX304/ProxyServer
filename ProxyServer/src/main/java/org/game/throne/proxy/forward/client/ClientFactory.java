@@ -5,6 +5,6 @@ import io.netty.channel.ChannelHandler;
 /**
  * Created by lvtu on 2017/9/6.
  */
-public abstract class LocalClientFactory {
+public abstract class ClientFactory {
     abstract MClient create(ChannelHandler handler);
 }

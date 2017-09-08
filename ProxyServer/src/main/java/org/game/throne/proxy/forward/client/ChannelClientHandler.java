@@ -24,14 +24,17 @@ public class ChannelClientHandler extends SimpleChannelInboundHandler implements
 
     private RelationKeeper relationKeeper;
 
-    public ChannelClientHandler(LocalHandler localHandler) {
+    private ClientFactory factory;
+
+    private ChannelClientHandler(LocalHandler localHandler) {
         this.localHandler = localHandler;
         localHandler.clientHandler = this;
     }
 
-    public ChannelClientHandler(LocalHandler localHandler,RelationKeeper relationKeeper) {
+    public ChannelClientHandler(LocalHandler localHandler,RelationKeeper relationKeeper,ClientFactory factory) {
         this(localHandler);
         this.relationKeeper = relationKeeper;
+        this.factory = factory;
     }
 
     private ChannelHandlerContext localConext(ChannelHandlerContext ctx) {
@@ -83,6 +86,7 @@ public class ChannelClientHandler extends SimpleChannelInboundHandler implements
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         requestBreakRelation(ctx);
+        addChannelClient();
         super.channelInactive(ctx);
     }
 
@@ -102,6 +106,11 @@ public class ChannelClientHandler extends SimpleChannelInboundHandler implements
             return;
         }
     }
+
+    private void addChannelClient(){
+        factory.create(this);
+    }
+
 
     @Override
     public void requestBreakRelation(ChannelHandlerContext ctx){
