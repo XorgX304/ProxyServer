@@ -14,11 +14,17 @@ import org.game.throne.proxy.forward.relation.RelationKeeper;
 public class ClientBootstrap {
 
     public static void main(String[] args) {
+        String localhost = "localhost";
+        int localPort = 8888;
+        String remoteHost = "localhost";
+        int remotePort = 8082;
+
+
         RelationKeeper relationKeeper = new RelationKeeper();
         ClientFactory localClientFactory = new ClientFactory() {
             @Override
             MClient create(ChannelHandler handler) {
-                MClient client = new MClient("localhost", 8888)
+                MClient client = new MClient(localhost, localPort)
                         .withHandlerFactory(new ChannelHandlerFactory(HttpRequestEncoder.class), new ChannelHandlerFactory(HttpResponseDecoder.class))
                         .withHandler(handler).connect();
                 client.releaseOnClose();
@@ -28,7 +34,7 @@ public class ClientBootstrap {
         ClientFactory channelClientFactory = new ClientFactory() {
             @Override
             MClient create(ChannelHandler handler) {
-                MClient client = new MClient("localhost", 8082)
+                MClient client = new MClient(remoteHost, remotePort)
                         .withHandlerFactory(new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class))
                         .withHandler(handler).connect();
                 client.releaseOnClose();
