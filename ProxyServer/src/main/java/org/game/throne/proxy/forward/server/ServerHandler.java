@@ -11,6 +11,7 @@ import org.game.throne.proxy.forward.TimeoutException;
 import org.game.throne.proxy.forward.client.ChannelClientHandler;
 import org.game.throne.proxy.forward.relation.RelationKeeper;
 import org.game.throne.proxy.forward.relation.RelationProcess;
+import org.game.throne.proxy.forward.util.FutureUtil;
 import org.game.throne.proxy.forward.util.HttpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +74,7 @@ public class ServerHandler extends SimpleChannelInboundHandler implements Relati
             return;
         }
         logger.info("data arrived. from channel:{},start to write into next channel:{}, msg:{}", ctx.channel(), channelServerConext.channel(), msg);
-        channelServerConext.write(msg);
+        channelServerConext.write(msg).addListener(FutureUtil.errorLogListener(ctx));
         if (msg instanceof LastHttpContent) {
             flushToNextChannel(ctx);
         }

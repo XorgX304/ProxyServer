@@ -1,7 +1,3 @@
-//apply plugin: 'application'
-
-//mainClassName = "org.game.throne.proxy.MServer"
-
 buildscript {
     ext {
         springBootVersion = '1.3.5.RELEASE'
@@ -16,11 +12,7 @@ buildscript {
 
 apply plugin: "spring-boot"
 
-//bootRepackage {
-//    mainClass = 'org.game.throne.proxy.ProxyServer'
-//}
 springBoot {
-//    mainClass = 'org.game.throne.proxy.ProxyServer'
     mainClass = 'org.game.throne.proxy.forward.server.ServerBootstrap'
 }
 

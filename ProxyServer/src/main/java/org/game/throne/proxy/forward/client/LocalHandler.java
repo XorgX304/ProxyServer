@@ -9,6 +9,7 @@ import io.netty.util.ReferenceCounted;
 import org.game.throne.proxy.forward.ChannelRelationEvent;
 import org.game.throne.proxy.forward.relation.RelationKeeper;
 import org.game.throne.proxy.forward.relation.RelationProcess;
+import org.game.throne.proxy.forward.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,7 +93,7 @@ public class LocalHandler extends SimpleChannelInboundHandler implements Relatio
         logger.info("start to get next context.");
         ChannelHandlerContext channelClientConext = channelClientConext(ctx);
         logger.info("data arrived. from channel:{},start to write into next channel:{}, msg:{}", ctx.channel(), channelClientConext.channel(), msg);
-        channelClientConext.write(msg);
+        channelClientConext.write(msg).addListener(FutureUtil.errorLogListener(ctx));
     }
 
     private void flushToNextChannel(ChannelHandlerContext ctx) throws Exception {

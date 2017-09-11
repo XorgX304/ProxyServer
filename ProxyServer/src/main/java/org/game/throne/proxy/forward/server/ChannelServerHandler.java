@@ -10,6 +10,7 @@ import org.game.throne.proxy.forward.ChannelRelationEvent;
 import org.game.throne.proxy.forward.client.LocalHandler;
 import org.game.throne.proxy.forward.relation.RelationKeeper;
 import org.game.throne.proxy.forward.relation.RelationProcess;
+import org.game.throne.proxy.forward.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,11 +73,12 @@ public class ChannelServerHandler extends SimpleChannelInboundHandler implements
         logger.info("start to get next context.");
         ChannelHandlerContext serverContext = serverConext(ctx);
         logger.info("data arrived. from channel:{},start to write into next channel:{}, msg:{}", ctx.channel(), serverContext.channel(), msg);
-        serverContext.write(msg);
+        serverContext.write(msg).addListener(FutureUtil.errorLogListener(ctx));
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        requestBreakRelation(ctx);
         cause.printStackTrace();
     }
 
