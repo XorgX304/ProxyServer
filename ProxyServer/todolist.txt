@@ -6,3 +6,4 @@
 6.MClient和MServer的关闭还没有实现。(finished. add releaseOnClose)
 7.MServer的反向通道断开重连还没有实现。(finished. add method of addChannelClient)
 8.怎样确认RefCount的对象被回收了?
+9.创建的channelCTX对象还被relationKeeper引用无法被回收。

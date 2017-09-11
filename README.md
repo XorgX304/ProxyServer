@@ -18,3 +18,6 @@ localhost:
 localPort:
 remoteHost:
 remotePort:
+
+### Security
+使用TLS对客户端进行验证,只有被授权的客户端才被允许连接服务器。

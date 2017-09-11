@@ -9,6 +9,8 @@ import org.game.throne.proxy.forward.relation.RelationKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+
 /**
  * Created by lvtu on 2017/9/4.
  */
@@ -20,11 +22,15 @@ public class ServerBootstrap {
         int serverListenerPort = 8083;
         int channelListenerPort = 8082;
 
+        File trustCertCollectionFile = new File("/Users/lvtu/workspace/english/cert/cer.pem");
+
         RelationKeeper relationKeeper = new RelationKeeper();
         ChannelServerHandler channelServerHandler = new ChannelServerHandler(relationKeeper);
         ServerHandler serverHandler = new ServerHandler(channelServerHandler,relationKeeper);
         new MServer(serverListenerPort).withHandlerFactory(new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class)).withHandler(serverHandler).run();
-        new MServer(channelListenerPort).withHandlerFactory(new ChannelHandlerFactory(HttpRequestEncoder.class), new ChannelHandlerFactory(HttpResponseDecoder.class)).withHandler(channelServerHandler).run();
+        new MServer(channelListenerPort).withHandlerFactory(new ChannelHandlerFactory(HttpRequestEncoder.class), new ChannelHandlerFactory(HttpResponseDecoder.class)).withHandler(channelServerHandler).withSecure(true).withTrustCertCollectionFile(trustCertCollectionFile).run();
         logger.info("servers started up.");
     }
+
+
 }

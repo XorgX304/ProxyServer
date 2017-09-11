@@ -8,6 +8,8 @@ import io.netty.handler.codec.http.HttpResponseEncoder;
 import org.game.throne.proxy.forward.ChannelHandlerFactory;
 import org.game.throne.proxy.forward.relation.RelationKeeper;
 
+import java.io.File;
+
 /**
  * Created by lvtu on 2017/9/4.
  */
@@ -18,6 +20,9 @@ public class ClientBootstrap {
         int localPort = 8888;
         String remoteHost = "localhost";
         int remotePort = 8082;
+
+        File keyCertChainFile = new File("/Users/lvtu/workspace/english/cert/cer.pem");
+        File keyFile = new File("/Users/lvtu/workspace/english/cert/privateKey.pkcs8.pem");
 
 
         RelationKeeper relationKeeper = new RelationKeeper();
@@ -35,7 +40,7 @@ public class ClientBootstrap {
             MClient create(ChannelHandler handler) {
                 MClient client = new MClient(remoteHost, remotePort)
                         .withHandlerFactory(new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class))
-                        .withHandler(handler).connect();
+                        .withHandler(handler).withSecure(true).withSecureFile(keyCertChainFile, keyFile).connect();
                 return client;
             }
         };

@@ -5,9 +5,13 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.game.throne.proxy.forward.ChannelHandlerFactory;
+
+import java.io.File;
 
 /**
  * Created by lvtu on 2017/8/31.
@@ -34,6 +38,19 @@ public class MServer {
         return this;
     }
 
+    private boolean isSecure = false;
+    private File trustCertCollectionFile;
+
+    public MServer withSecure(boolean isSecure){
+        this.isSecure = isSecure;
+        return this;
+    }
+
+    public MServer withTrustCertCollectionFile(File trustCertCollectionFile){
+        this.trustCertCollectionFile = trustCertCollectionFile;
+        return this;
+    }
+
     public MServer run() {
         EventLoopGroup bossGroup = new NioEventLoopGroup(); // (1)
         EventLoopGroup workerGroup = new NioEventLoopGroup();
@@ -45,6 +62,11 @@ public class MServer {
                         @Override
                         public void initChannel(SocketChannel ch) throws Exception {
                             ChannelPipeline pipeline = ch.pipeline();
+                            if(isSecure){
+                                //验证客户端
+                                SslContext sslCtxOfC = SslContextBuilder.forClient().trustManager(trustCertCollectionFile).build();
+                                pipeline.addLast("ssl", sslCtxOfC.newHandler(ch.alloc()));
+                            }
                             if (factories != null && factories.length > 0) {
                                 for (int i = 0; i < factories.length; i++) {
                                     pipeline.addLast(factories[i].create());
