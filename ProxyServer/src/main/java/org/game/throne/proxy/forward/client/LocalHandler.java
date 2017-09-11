@@ -110,6 +110,7 @@ public class LocalHandler extends SimpleChannelInboundHandler implements Relatio
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        logger.info("{} is closed.", ctx);
         requestBreakRelation(ctx);
         contextObjectPool.remove(ctx);
         super.channelInactive(ctx);
