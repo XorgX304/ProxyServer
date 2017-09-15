@@ -1,5 +1,6 @@
 package org.game.throne.proxy.forward.server;
 
+import com.google.common.base.Verify;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -24,17 +25,18 @@ public class MServer {
         this.port = port;
     }
 
-    private ChannelHandler[] handler;
-
-    public MServer withHandler(ChannelHandler... handler) {
-        this.handler = handler;
-        return this;
-    }
-
     private ChannelHandlerFactory[] factories;
 
     public MServer withHandlerFactory(ChannelHandlerFactory... factories) {
-        this.factories = factories;
+        Verify.verifyNotNull(factories);
+        if (factories == null) {
+            this.factories = factories;
+        } else {
+            ChannelHandlerFactory[] f = new ChannelHandlerFactory[factories.length + this.factories.length];
+            System.arraycopy(this.factories, 0, f, 0, this.factories.length);
+            System.arraycopy(factories, 0, f, this.factories.length, factories.length);
+            this.factories = f;
+        }
         return this;
     }
 
@@ -72,7 +74,6 @@ public class MServer {
                                     pipeline.addLast(factories[i].create());
                                 }
                             }
-                            pipeline.addLast(handler);
                         }
                     })
                     .option(ChannelOption.SO_BACKLOG, 128)          // (5)

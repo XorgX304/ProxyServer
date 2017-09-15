@@ -6,6 +6,8 @@ import io.netty.handler.codec.http.HttpRequestEncoder;
 import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import org.game.throne.proxy.forward.ChannelHandlerFactory;
+import org.game.throne.proxy.forward.codec.CommandDecoder;
+import org.game.throne.proxy.forward.codec.CommandEncoder;
 import org.game.throne.proxy.forward.relation.RelationKeeper;
 
 import java.io.File;
@@ -24,30 +26,42 @@ public class ClientBootstrap {
         File keyCertChainFile = new File("/Users/lvtu/workspace/english/cert/cer.pem");
         File keyFile = new File("/Users/lvtu/workspace/english/cert/privateKey.pkcs8.pem");
 
-
-        RelationKeeper relationKeeper = new RelationKeeper();
         ClientFactory localClientFactory = new ClientFactory() {
             @Override
-            MClient create(ChannelHandler handler) {
-                MClient client = new MClient(localhost, localPort)
+            public MClient create(RelationKeeper relationKeeper) {
+                return new MClient(localhost, localPort)
                         .withHandlerFactory(new ChannelHandlerFactory(HttpRequestEncoder.class), new ChannelHandlerFactory(HttpResponseDecoder.class))
-                        .withHandler(handler).connect();
-                return client;
+                        .withHandlerFactory(new ChannelHandlerFactory(LocalHandler.class){
+                            @Override
+                            public ChannelHandler create() {
+                                return new LocalHandler(relationKeeper);
+                            }
+                        })
+                        .connect();
             }
         };
-        ClientFactory channelClientFactory = new ClientFactory() {
-            @Override
-            MClient create(ChannelHandler handler) {
-                MClient client = new MClient(remoteHost, remotePort)
-                        .withHandlerFactory(new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class))
-                        .withHandler(handler).withSecure(true).withSecureFile(keyCertChainFile, keyFile).connect();
-                return client;
-            }
-        };
-        LocalHandler localHandler = new LocalHandler(localClientFactory, relationKeeper);
-        ChannelClientHandler channelClientHandler = new ChannelClientHandler(localHandler, relationKeeper, channelClientFactory);
 
-        channelClientFactory.create(channelClientHandler);
+        ClientFactory channelClientFactory = new ClientFactory() {
+            private ClientFactory clientFactory = this;
+            @Override
+            public MClient create(RelationKeeper relationKeeper) {
+                return new MClient(remoteHost, remotePort)
+                        .withHandlerFactory(new ChannelHandlerFactory(CommandDecoder.class),new ChannelHandlerFactory(CommandEncoder.class),new ChannelHandlerFactory(HttpRequestDecoder.class), new ChannelHandlerFactory(HttpResponseEncoder.class))
+                        .withHandlerFactory(new ChannelHandlerFactory(ChannelClientHandler.class){
+                            @Override
+                            public ChannelHandler create() {
+                                return new ChannelClientHandler(relationKeeper, clientFactory);
+                            }
+                        })
+                        .withSecure(true)
+                        .withSecureFile(keyCertChainFile, keyFile)
+                        .connect();
+            }
+        };
+
+        RelationKeeper relationKeeper = RelationKeeper.forClient(localClientFactory);
+
+        channelClientFactory.create(relationKeeper);
 
     }
 }

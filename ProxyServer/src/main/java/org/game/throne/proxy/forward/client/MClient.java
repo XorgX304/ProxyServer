@@ -1,5 +1,6 @@
 package org.game.throne.proxy.forward.client;
 
+import com.google.common.base.Verify;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -27,15 +28,18 @@ public class MClient {
         this.port = port;
     }
 
-    public MClient withHandler(ChannelHandler... handler) {
-        this.handler = handler;
-        return this;
-    }
-
     private ChannelHandlerFactory[] factories;
 
     public MClient withHandlerFactory(ChannelHandlerFactory... factories) {
-        this.factories = factories;
+        Verify.verifyNotNull(factories);
+        if (factories == null) {
+            this.factories = factories;
+        } else {
+            ChannelHandlerFactory[] f = new ChannelHandlerFactory[factories.length + this.factories.length];
+            System.arraycopy(this.factories, 0, f, 0, this.factories.length);
+            System.arraycopy(factories, 0, f, this.factories.length, factories.length);
+            this.factories = f;
+        }
         return this;
     }
 
@@ -43,12 +47,12 @@ public class MClient {
     private File keyCertChainFile;
     private File keyFile;
 
-    public MClient withSecure(boolean isSecure){
+    public MClient withSecure(boolean isSecure) {
         this.isSecure = isSecure;
         return this;
     }
 
-    public MClient withSecureFile(File keyCertChainFile,File keyFile){
+    public MClient withSecureFile(File keyCertChainFile, File keyFile) {
         this.keyCertChainFile = keyCertChainFile;
         this.keyFile = keyFile;
         return this;
@@ -66,7 +70,7 @@ public class MClient {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
                     ChannelPipeline pipeline = ch.pipeline();
-                    if(isSecure){
+                    if (isSecure) {
                         SslContext sslCtx = SslContextBuilder.forServer(keyCertChainFile, keyFile).build();
                         pipeline.addLast("ssl", sslCtx.newHandler(ch.alloc()));
                     }
