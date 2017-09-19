@@ -26,7 +26,7 @@ public class CommandParser {
                         ctx.writeAndFlush(new CommandHeader(CommandEnum.ACK_PIPELINE, commandHeader.getPipePort()));
                         break;
                     case ACK_PIPELINE:
-                        PipelineConnectionProvider.existedPipeline(commandHeader.getPipePort()).done();
+                        PipelineConnectionProvider.existedPipeline(commandHeader.getPipePort()).ready();
                         break;
                     case CLOSE_PIPELINE:
                         handler.getPipelineConnection().close();

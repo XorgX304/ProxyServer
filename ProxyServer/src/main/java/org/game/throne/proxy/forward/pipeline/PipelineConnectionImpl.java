@@ -39,8 +39,6 @@ public class PipelineConnectionImpl implements PipelineConnection {
 
     private Condition established = lock.newCondition();
 
-    private Phase state;
-
     private Phase lifecycle;
 
     private AtomicInteger respondedRequestCount = new AtomicInteger(0);
@@ -67,10 +65,10 @@ public class PipelineConnectionImpl implements PipelineConnection {
             logger.debug("Retaining reference counted message");
             ((ReferenceCounted) msg).retain();
         }
-        if(msg instanceof HttpRequest){
+        if (msg instanceof HttpRequest) {
             respondedRequestCount.incrementAndGet();
         }
-        if(msg instanceof HttpResponse){
+        if (msg instanceof HttpResponse) {
             respondedRequestCount.decrementAndGet();
         }
         lifecycle = respondedRequestCount.get() > 0 ? Phase.REQUEST : Phase.COMPLETE;
@@ -90,9 +88,10 @@ public class PipelineConnectionImpl implements PipelineConnection {
 
     @Override
     public void close() {
-        if(complete()){
+        lifecycle = Phase.CLOSED;
+        if (complete()) {
             release();
-        }else {
+        } else {
             reallyClose();
         }
     }
@@ -100,7 +99,7 @@ public class PipelineConnectionImpl implements PipelineConnection {
     /**
      * 关闭相关联的所有socket连接
      */
-    private void reallyClose(){
+    private void reallyClose() {
         release();
         leftCtx.close();
         rightCtx.close();
@@ -109,7 +108,7 @@ public class PipelineConnectionImpl implements PipelineConnection {
     /**
      * 不关闭socket连接,回归池里,仅仅断开关联关系
      */
-    private void release(){
+    private void release() {
         relationKeeper.breakRelation(leftCtx);
     }
 
@@ -122,10 +121,10 @@ public class PipelineConnectionImpl implements PipelineConnection {
     }
 
     @Override
-    public void done() {
+    public void ready() {
         lock.lock();
         try {
-            state = Phase.PIPELINE_FINISHED;
+            lifecycle = Phase.PIPELINE_FINISHED;
             established.signalAll();
         } catch (Exception e) {
             e.printStackTrace();
@@ -135,12 +134,12 @@ public class PipelineConnectionImpl implements PipelineConnection {
     }
 
     @Override
-    public boolean isDone() {
-        return state == Phase.PIPELINE_FINISHED;
+    public boolean isReady() {
+        return lifecycle != null && lifecycle != Phase.CLOSED;
     }
 
     @Override
-    public void awaitDone() {
+    public void awaitReady() {
         lock.lock();
         try {
             established.await();
@@ -151,15 +150,14 @@ public class PipelineConnectionImpl implements PipelineConnection {
         }
     }
 
-
-    @Override
-    public Phase lifecycle() {
-        return lifecycle;
-    }
-
     @Override
     public boolean complete() {
         return lifecycle == Phase.COMPLETE;
+    }
+
+    @Override
+    public int pipeport() {
+        return pipeport;
     }
 
     public int getPipeport() {

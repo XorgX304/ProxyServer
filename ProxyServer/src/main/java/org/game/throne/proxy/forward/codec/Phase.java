@@ -3,7 +3,7 @@ package org.game.throne.proxy.forward.codec;
 /**
  * Created by lvtu on 2017/9/15.
  */
-public enum  Phase {
+public enum Phase {
     /**
      *
      */
@@ -11,13 +11,7 @@ public enum  Phase {
     AWATING_HTTP_CONTENT,
 
     /**
-     *
-     */
-    PIPELINE_FINISHED,
-
-
-    /**
      * PIPELINE LIFECYCLE
      */
-    REQUEST,COMPLETE;
+    PIPELINE_FINISHED, REQUEST, COMPLETE, CLOSED;
 }

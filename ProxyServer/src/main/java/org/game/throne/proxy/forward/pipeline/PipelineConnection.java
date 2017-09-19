@@ -1,7 +1,5 @@
 package org.game.throne.proxy.forward.pipeline;
 
-import org.game.throne.proxy.forward.codec.Phase;
-
 /**
  * Created by lvtu on 2017/9/14.
  */
@@ -11,13 +9,16 @@ public interface PipelineConnection {
 
     void close();
 
-    void done();
+    /**
+     * 可以用来发送request
+     */
+    void ready();
 
-    void awaitDone();
+    void awaitReady();
 
-    boolean isDone();//是否建立起pipeline
-
-    Phase lifecycle();
+    boolean isReady();
 
     boolean complete();
+
+    int pipeport();
 }

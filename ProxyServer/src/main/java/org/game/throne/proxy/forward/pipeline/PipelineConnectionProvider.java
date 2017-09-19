@@ -18,7 +18,7 @@ public class PipelineConnectionProvider {
     public static PipelineConnection openPipeline(ChannelHandlerContext leftOrRightCtx, RelationKeeper relationKeeper) {
         PipelineConnectionImpl pipeline = new PipelineConnectionImpl(leftOrRightCtx, relationKeeper);
         pipeline.bindPipeport();
-        pipeline.awaitDone();
+        pipeline.awaitReady();
         relationToConnection.put(relationKeeper.matchedRelation(leftOrRightCtx), pipeline);
         portToConnection.put(pipeline.getPipeport(), pipeline);
         return pipeline;

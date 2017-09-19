@@ -5,6 +5,7 @@ import io.netty.channel.ChannelHandlerContext;
 /**
  * Created by lvtu on 2017/9/7.
  */
+@Deprecated
 public interface RelationProcess {
     void requestBreakRelation(ChannelHandlerContext ctx);
 
